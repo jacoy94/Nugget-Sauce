@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KFC Sauce Preferences</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden; /* Prevent horizontal scrollbar from animation */
+        }
+        .delete-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .delete-btn:hover {
+            transform: scale(1.1);
+        }
+        /* --- Falling Nuggets Animation --- */
+        #nugget-rain-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0; /* Behind the main content */
+        }
+        .nugget {
+            position: absolute;
+            top: -10%;
+            /* Using a nugget-like emoji */
+            content: '🍗'; 
+            color: #8B4513; /* Brownish color for the nugget */
+            font-size: 2rem;
+            animation: fall linear infinite;
+            user-select: none;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+            100% {
+                transform: translateY(110vh) rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    
+    <div id="nugget-rain-container"></div>
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 relative z-10">
+        <header class="text-center mb-8 bg-white/80 backdrop-blur-sm p-4 rounded-lg">
+            <img src="https://upload.wikimedia.org/wikipedia/sco/thumb/b/bf/KFC_logo.svg/1200px-KFC_logo.svg.png" alt="KFC Logo" class="w-24 h-24 mx-auto mb-4" onerror="this.onerror=null;this.src='https://placehold.co/100x100/f5f5f5/ef4444?text=KFC';">
+            <h1 class="text-3xl sm:text-4xl font-bold text-red-600">Colonel's Sauce Showdown</h1>
+            <p class="text-gray-600 mt-2">What's your go-to sauce? Let the world know!</p>
+        </header>
+
+        <!-- Pie Chart Display -->
+        <div class="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-center">Total Votes</h2>
+            <div class="max-w-md mx-auto">
+                <canvas id="sauce-pie-chart"></canvas>
+            </div>
+        </div>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Submission Form -->
+            <div class="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold mb-4">Cast Your Vote</h2>
+                <form id="sauce-form">
+                    <div class="mb-4">
+                        <label for="sauce" class="block text-sm font-medium text-gray-700 mb-1">Favorite Sauce</label>
+                        <select id="sauce" name="sauce" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" required>
+                            <option value="" disabled selected>Select a sauce</option>
+                            <option value="BBQ">BBQ</option>
+                            <option value="Honey Mustard">Honey Mustard</option>
+                            <option value="Ranch">Ranch</option>
+                            <option value="Sweet and Sour">Sweet and Sour</option>
+                            <option value="Buffalo">Buffalo</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div id="other-sauce-container" class="mb-4 hidden">
+                        <label for="otherSauce" class="block text-sm font-medium text-gray-700 mb-1">Please specify:</label>
+                        <input type="text" id="otherSauce" name="otherSauce" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Your unique sauce">
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300">
+                        Submit Response
+                    </button>
+                </form>
+                 <div id="form-message" class="mt-4 text-center"></div>
+            </div>
+
+            <!-- Responses Display -->
+            <div class="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold mb-4">Live Responses</h2>
+                <div id="responses-list" class="space-y-4 h-96 overflow-y-auto pr-2">
+                    <!-- Responses will be dynamically inserted here -->
+                     <p class="text-gray-500 text-center" id="loading-message">Loading responses...</p>
+                </div>
+            </div>
+             <!-- Miscellaneous Data Section -->
+            <div class="lg:col-span-2 bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md mt-8">
+                <h2 class="text-2xl font-semibold mb-4">Miscellaneous Data</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-lg font-semibold text-center mb-2">Most Popular Sauce</h3>
+                        <div id="popular-sauce" class="text-center">
+                            <!-- Popular sauce will be calculated and displayed here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-center mb-2">Responses Per Day</h3>
+                        <canvas id="responses-by-date-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- YouTube Video Section -->
+        <div class="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md mt-8">
+            <h2 class="text-2xl font-semibold mb-4 text-center">A Word From The Colonel</h2>
+            <div class="relative" style="padding-top: 56.25%;"> <!-- 16:9 Aspect Ratio -->
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full rounded-lg" 
+                    src="https://www.youtube.com/embed/Ynh6WmLi_gQ" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, where, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Create Falling Nuggets ---
+        function createNuggetRain() {
+            const container = document.getElementById('nugget-rain-container');
+            const nuggetCount = 30; // Number of nuggets on screen
+            for (let i = 0; i < nuggetCount; i++) {
+                const nugget = document.createElement('div');
+                nugget.classList.add('nugget');
+                nugget.textContent = '🍗';
+
+                const size = Math.random() * 1.5 + 1; // size between 1rem and 2.5rem
+                const left = Math.random() * 100; // left position in vw
+                const duration = Math.random() * 8 + 7; // duration between 7s and 15s
+                const delay = Math.random() * 10; // delay up to 10s
+
+                nugget.style.fontSize = `${size}rem`;
+                nugget.style.left = `${left}vw`;
+                nugget.style.animationDuration = `${duration}s`;
+                nugget.style.animationDelay = `-${delay}s`; // Negative delay starts animations mid-flight
+
+                container.appendChild(nugget);
+            }
+        }
+        createNuggetRain();
+
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        if (!firebaseConfig) {
+            console.error("Firebase configuration not found. The app cannot connect to the database.");
+            document.getElementById('form-message').innerHTML = `<p class="text-red-500">Firebase configuration is missing.</p>`;
+            document.getElementById('loading-message').textContent = 'Firebase configuration is missing.';
+        } else {
+            try {
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                const auth = getAuth(app);
+                
+                const collectionPath = `artifacts/${appId}/public/data/sauceResponses`;
+                const responsesCollection = collection(db, collectionPath);
+
+                // --- Chart.js Setup ---
+                const pieChartCanvas = document.getElementById('sauce-pie-chart');
+                const barChartCanvas = document.getElementById('responses-by-date-chart');
+                let saucePieChart;
+                let responsesBarChart;
+
+                const sauceColors = {
+                    'BBQ': '#8B4513', // Brown
+                    'Honey Mustard': '#FFDB58', // Mustard Yellow
+                    'Ranch': '#F5F5DC', // Beige
+                    'Sweet and Sour': '#FF4500', // OrangeRed
+                    'Buffalo': '#E32636', // Bright Red
+                    'Other': '#808080' // Gray
+                };
+
+                function updatePieChart(responses) {
+                    const sauceCounts = responses.reduce((acc, curr) => {
+                        acc[curr.sauce] = (acc[curr.sauce] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                    const labels = Object.keys(sauceCounts);
+                    const data = Object.values(sauceCounts);
+                    const backgroundColors = labels.map(label => sauceColors[label] || sauceColors['Other']);
+
+                    if (saucePieChart) {
+                        saucePieChart.data.labels = labels;
+                        saucePieChart.data.datasets[0].data = data;
+                        saucePieChart.data.datasets[0].backgroundColor = backgroundColors;
+                        saucePieChart.update();
+                    } else {
+                        saucePieChart = new Chart(pieChartCanvas, {
+                            type: 'pie',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: '# of Votes',
+                                    data: data,
+                                    backgroundColor: backgroundColors,
+                                    borderColor: '#fff',
+                                    borderWidth: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: { legend: { position: 'top' } }
+                            }
+                        });
+                    }
+                }
+
+                function updateBarChart(responses) {
+                    const responsesByDate = responses.reduce((acc, curr) => {
+                        const date = curr.createdAt.toDate().toLocaleDateString();
+                        acc[date] = (acc[date] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                    const labels = Object.keys(responsesByDate).sort((a, b) => new Date(a) - new Date(b));
+                    const data = labels.map(label => responsesByDate[label]);
+
+                    if (responsesBarChart) {
+                        responsesBarChart.data.labels = labels;
+                        responsesBarChart.data.datasets[0].data = data;
+                        responsesBarChart.update();
+                    } else {
+                        responsesBarChart = new Chart(barChartCanvas, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Responses',
+                                    data: data,
+                                    backgroundColor: 'rgba(220, 38, 38, 0.6)',
+                                    borderColor: 'rgba(220, 38, 38, 1)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+                }
+
+
+                // --- Seed Initial Data ---
+                async function seedBaselineData() {
+                    const baselineQuery = query(responsesCollection, where("baseline", "==", true));
+                    const querySnapshot = await getDocs(baselineQuery);
+                    
+                    if (querySnapshot.empty) {
+                        console.log("No baseline data found. Seeding initial votes.");
+                        const addPromises = [];
+                        for (let i = 0; i < 5; i++) {
+                            addPromises.push(addDoc(responsesCollection, {
+                                sauce: "BBQ",
+                                createdAt: new Date(),
+                                baseline: true
+                            }));
+                        }
+                        addPromises.push(addDoc(responsesCollection, {
+                            sauce: "Honey Mustard",
+                            createdAt: new Date(),
+                            baseline: true
+                        }));
+
+                        try {
+                            await Promise.all(addPromises);
+                            console.log("Successfully added baseline votes.");
+                        } catch (error) {
+                            console.error("Error adding baseline votes: ", error);
+                        }
+                    }
+                }
+
+                // --- Delete a Response ---
+                async function deleteResponse(id) {
+                    try {
+                        await deleteDoc(doc(db, collectionPath, id));
+                        console.log("Document successfully deleted!");
+                    } catch (error) {
+                        console.error("Error removing document: ", error);
+                    }
+                }
+
+                // --- Authentication and Data Loading ---
+                const authenticateAndLoad = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                        console.log("Authentication successful.");
+                        
+                        await seedBaselineData();
+
+                        // --- Real-time Data Display ---
+                        const responsesList = document.getElementById('responses-list');
+                        const loadingMessage = document.getElementById('loading-message');
+                        const q = query(responsesCollection);
+                        onSnapshot(q, (querySnapshot) => {
+                            const responses = [];
+                            querySnapshot.forEach((doc) => {
+                                responses.push({ id: doc.id, ...doc.data() });
+                            });
+
+                            if (responses.length === 0) {
+                                loadingMessage.textContent = 'No responses yet. Be the first!';
+                                responsesList.innerHTML = '';
+                            } else {
+                                loadingMessage.style.display = 'none';
+                                responsesList.innerHTML = '';
+                                responses.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+                                responses.forEach(response => {
+                                    const responseElement = document.createElement('div');
+                                    responseElement.className = 'flex items-center justify-between p-3 bg-white/70 backdrop-blur-sm rounded-md border border-gray-200';
+                                    const dateString = response.createdAt.toDate().toLocaleString();
+
+                                    responseElement.innerHTML = `
+                                        <div>
+                                            <p class="text-gray-800 font-semibold">${response.sauce}</p>
+                                            <p class="text-xs text-gray-500">${dateString}</p>
+                                        </div>
+                                        <button data-id="${response.id}" class="delete-btn text-red-500 hover:text-red-700 font-bold text-xl" title="Delete Response">&times;</button>
+                                    `;
+                                    responsesList.appendChild(responseElement);
+                                });
+                            }
+                            // Update all visualizations
+                            updatePieChart(responses);
+                            updateBarChart(responses);
+                            calculatePopularSauce(responses);
+                        }, (error) => {
+                            console.error("Error getting responses:", error);
+                            loadingMessage.textContent = 'Error loading responses.';
+                        });
+
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                        document.getElementById('form-message').innerHTML = `<p class="text-red-500">Authentication failed. Cannot save or load data.</p>`;
+                    }
+                };
+
+                // --- Form Handling ---
+                const sauceForm = document.getElementById('sauce-form');
+                const sauceSelect = document.getElementById('sauce');
+                const otherSauceContainer = document.getElementById('other-sauce-container');
+                const formMessage = document.getElementById('form-message');
+
+                sauceSelect.addEventListener('change', (e) => {
+                    if (e.target.value === 'Other') {
+                        otherSauceContainer.classList.remove('hidden');
+                        document.getElementById('otherSauce').required = true;
+                    } else {
+                        otherSauceContainer.classList.add('hidden');
+                        document.getElementById('otherSauce').required = false;
+                    }
+                });
+
+                sauceForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    formMessage.textContent = '';
+                    let sauce = sauceForm.sauce.value;
+                    if (sauce === 'Other') {
+                        sauce = sauceForm.otherSauce.value.trim();
+                    }
+                    if (!sauce) {
+                        formMessage.innerHTML = `<p class="text-red-500">Please select a sauce.</p>`;
+                        return;
+                    }
+                    try {
+                        await addDoc(responsesCollection, {
+                            sauce: sauce,
+                            createdAt: new Date(),
+                            baseline: false
+                        });
+                        formMessage.innerHTML = `<p class="text-green-500">Thank you for your response!</p>`;
+                        sauceForm.reset();
+                        otherSauceContainer.classList.add('hidden');
+                    } catch (error) {
+                        console.error("Error adding document: ", error);
+                        formMessage.innerHTML = `<p class="text-red-500">Failed to submit response. Please try again.</p>`;
+                    }
+                });
+                
+                // --- Event Listener for Deletion ---
+                document.getElementById('responses-list').addEventListener('click', (e) => {
+                    if (e.target && e.target.classList.contains('delete-btn')) {
+                        const id = e.target.getAttribute('data-id');
+                        deleteResponse(id);
+                    }
+                });
+
+                // --- Miscellaneous Data Calculation ---
+                function calculatePopularSauce(responses) {
+                    const popularSauceContainer = document.getElementById('popular-sauce');
+                    if (!responses || responses.length === 0) {
+                        popularSauceContainer.innerHTML = '';
+                        return;
+                    }
+                    const sauceCounts = responses.reduce((acc, curr) => {
+                        acc[curr.sauce] = (acc[curr.sauce] || 0) + 1;
+                        return acc;
+                    }, {});
+                    
+                    if (Object.keys(sauceCounts).length === 0) {
+                        popularSauceContainer.innerHTML = '';
+                        return;
+                    }
+
+                    const mostPopular = Object.keys(sauceCounts).reduce((a, b) => sauceCounts[a] > sauceCounts[b] ? a : b);
+                    popularSauceContainer.innerHTML = `
+                        <p class="text-2xl font-bold text-red-700">${mostPopular}</p>
+                        <p class="text-gray-500">with ${sauceCounts[mostPopular]} vote(s)</p>
+                    `;
+                }
+
+                // Initialize the application
+                authenticateAndLoad();
+
+            } catch (e) {
+                console.error("Error initializing Firebase:", e);
+                document.getElementById('form-message').innerHTML = `<p class="text-red-500">Firebase initialization failed.</p>`;
+                document.getElementById('loading-message').textContent = 'Firebase initialization failed.';
+            }
+        }
+    </script>
+</body>
+</html>
